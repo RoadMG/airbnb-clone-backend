@@ -3,7 +3,6 @@ from rest_framework import serializers
 from .models import Amenity, Room
 from users.serializers import TinyUserSerializer
 from categories.serializers import CategorySerializer
-from reviews.serializers import ReviewSerializer
 from medias.serializers import PhotoSerializer
 from wishlists.models import Wishlist
 
@@ -66,7 +65,6 @@ class RoomDetailSerializer(ModelSerializer):
         fields = "__all__"
 
     def get_rating(self, room):
-        print(self.context)
         return room.rating()
 
     def get_is_owner(self, room):
