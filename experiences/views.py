@@ -1,5 +1,5 @@
-from django.db import transaction
-
+from django.utils import timezone
+from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.exceptions import NotFound, ParseError, PermissionDenied
 from rest_framework.status import HTTP_204_NO_CONTENT
@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from . import models, serializers
 from categories import models as CategoryModels
+from bookings import models as BookingModels, serializers as BookingSerializer
 
 
 class Perks(APIView):
@@ -154,4 +155,124 @@ class ExperiencesDetail(APIView):
             return Response(serializer.errors)
 
     def delete(self, request, pk):
-        pass
+        experience = self.get_object(pk)
+
+        if experience.host != request.user:
+            raise PermissionDenied
+
+        experience.delete()
+        return Response(status=HTTP_204_NO_CONTENT)
+
+
+class ExperiencePerks(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_object(self, pk):
+        try:
+            return models.Experience.objects.get(pk=pk)
+        except models.Experience.DoesNotExist:
+            raise NotFound
+
+    def get(self, request, pk):
+        try:
+            page = request.query_params.get("page", 1)
+            page = int(page)
+        except ValueError:
+            page = 1
+        start = (page - 1) * settings.PAGE_SIZE
+        end = start + settings.PAGE_SIZE
+        experience = self.get_object(pk)
+        serializer = serializers.PerkSerializer(
+            experience.perks.all()[start:end],
+            many=True,
+        )
+        return Response(serializer.data)
+
+
+class ExperienceBooking(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_object(self, pk):
+        try:
+            return models.Experience.objects.get(pk=pk)
+        except models.Experience.DoesNotExist:
+            raise NotFound
+
+    def get(self, request, pk):
+        experience = self.get_object(pk)
+        now = timezone.localtime(timezone.now()).date()
+        bookings = BookingModels.Booking.objects.filter(
+            experience=experience,
+            kind=BookingModels.Booking.BookingKindChoices.EXPERIENCE,
+            experience_date__gt=now,
+        )
+        serializers = BookingSerializer.PublicExperienceBookingSerializer(
+            bookings, many=True
+        )
+        return Response(serializers.data)
+
+    def post(self, request, pk):
+        experience = self.get_object(pk)
+        serializer = BookingSerializer.CreateExperienceBookingSerializer(
+            data=request.data
+        )
+        if serializer.is_valid():
+            booking = serializer.save(
+                experience=experience,
+                user=request.user,
+                kind=BookingModels.Booking.BookingKindChoices.EXPERIENCE,
+            )
+            serializer = BookingSerializer.PublicExperienceBookingSerializer(booking)
+            return Response(serializer.data)
+
+        else:
+            return Response(serializer.errors)
+
+
+class ExperienceBookingDetail(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_experience(self, pk):
+        try:
+            return models.Experience.objects.get(pk=pk)
+        except models.Experience.DoesNotExist:
+            raise NotFound
+
+    def get_booking(self, pk):
+        try:
+            return BookingModels.Booking.objects.get(pk=pk)
+        except BookingModels.Booking.DoesNotExist:
+            raise NotFound
+
+    def get(self, request, pk, booking_pk):
+        booking = self.get_booking(booking_pk)
+        serializer = BookingSerializer.ExperienceBookingDetailSerializer(booking)
+        return Response(serializer.data)
+
+    def put(self, request, pk, booking_pk):
+        booking = self.get_booking(booking_pk)
+
+        if booking.user.pk != request.user.pk:
+            raise PermissionDenied
+
+        serializer = BookingSerializer.CreateExperienceBookingSerializer(
+            booking,
+            data=request.data,
+            partial=True,
+        )
+
+        if serializer.is_valid():
+            booking = serializer.save()
+            serializer = BookingSerializer.PublicExperienceBookingSerializer(booking)
+            return Response(serializer.data)
+        return Response(serializer.errors)
+
+    def delete(self, reqeust, pk, booking_pk):
+        booking = self.get_booking(booking_pk)
+
+        if booking.user.pk != reqeust.user.pk:
+            raise PermissionDenied
+
+        booking.delete()
+
+        return Response(status=HTTP_204_NO_CONTENT)
