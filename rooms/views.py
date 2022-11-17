@@ -9,7 +9,7 @@ from rest_framework.exceptions import (
     ParseError,
     PermissionDenied,
 )
-from rest_framework.status import HTTP_204_NO_CONTENT
+from rest_framework.status import HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from categories.models import Category
 from .models import Amenity, Room
@@ -26,7 +26,10 @@ from bookings.serializers import (
 class Amenities(APIView):
     def get(self, request):
         all_amenities = Amenity.objects.all()
-        serializer = serializers.AmenitySerializer(all_amenities, many=True)
+        serializer = serializers.AmenitySerializer(
+            all_amenities,
+            many=True,
+        )
         return Response(serializer.data)
 
     def post(self, request):
@@ -35,7 +38,10 @@ class Amenities(APIView):
             amenity = serializer.save()
             return Response(serializers.AmenitySerializer(amenity).data)
         else:
-            return Response(serializer.errors)
+            return Response(
+                serializer.errors,
+                status=HTTP_400_BAD_REQUEST,
+            )
 
 
 class AmenityDetail(APIView):
@@ -63,7 +69,7 @@ class AmenityDetail(APIView):
 
     def delete(self, request, pk):
         amenity = self.get_object(pk)
-        amenity.delet()
+        amenity.delete()
         return Response(status=HTTP_204_NO_CONTENT)
 
 
@@ -112,7 +118,10 @@ class Rooms(APIView):
             except Exception:
                 raise ParseError("Amenity not found")
         else:
-            return Response(serializer.errors)
+            return Response(
+                serializer.errors,
+                status=HTTP_400_BAD_REQUEST,
+            )
 
 
 class RoomDetail(APIView):

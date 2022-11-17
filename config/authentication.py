@@ -21,7 +21,7 @@ class JWTAuthentication(BaseAuthentication):
     def authenticate(self, request):
         token = request.headers.get("Jwt")
         if not token:
-            raise AuthenticationFailed("Invalid token")
+            return None
         decoded = jwt.decode(
             token,
             settings.SECRET_KEY,
