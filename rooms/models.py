@@ -2,7 +2,6 @@ from tabnanny import verbose
 from django.db import models
 from common.models import CommonModel
 
-
 class Room(CommonModel):
 
     """Room Model Definition"""
