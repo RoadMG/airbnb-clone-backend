@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["Mingyu Kil <90road@gmail.com>"]
 readme = "README.md"
-packages = [{include = "airbnb_clone_backend"}]
+
 
 [tool.poetry.dependencies]
 python = "^3.10"
